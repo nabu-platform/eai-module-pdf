@@ -24,9 +24,9 @@ public class Services {
 	
 	@WebResult(name = "pdf")
 	public InputStream render(@WebParam(name = "html") InputStream html, @WebParam(name = "url") String url) throws SAXException, IOException, ParserConfigurationException, DocumentException {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
-        render(html, url, output);
-        return new ByteArrayInputStream(output.toByteArray());
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		render(html, url, output);
+		return new ByteArrayInputStream(output.toByteArray());
 	}
 
 	private void render(InputStream html, String url, OutputStream output) throws SAXException, IOException, ParserConfigurationException, DocumentException {
