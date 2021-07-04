@@ -31,7 +31,7 @@ public class Services {
 
 	private void render(InputStream html, String url, OutputStream output) throws SAXException, IOException, ParserConfigurationException, DocumentException {
 		ITextRenderer renderer = new ITextRenderer();
-		Document document = Scraper.toDocument(html);
+		Document document = Scraper.toDocument(Scraper.html2xml(html));
 		renderer.setDocument(document, url);
 		renderer.layout();
 		renderer.createPDF(output);
