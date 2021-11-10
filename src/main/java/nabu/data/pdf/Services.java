@@ -5,12 +5,18 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 
 import javax.jws.WebParam;
 import javax.jws.WebResult;
 import javax.jws.WebService;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.w3c.dom.Document;
 import org.xhtmlrenderer.pdf.ITextRenderer;
 import org.xml.sax.SAXException;
@@ -18,6 +24,8 @@ import org.xml.sax.SAXException;
 import com.itextpdf.text.DocumentException;
 
 import be.nabu.libs.scraper.Scraper;
+import be.nabu.utils.io.IOUtils;
+import nabu.data.pdf.types.PDFDocument;
 
 @WebService
 public class Services {
@@ -35,5 +43,46 @@ public class Services {
 		renderer.setDocument(document, url);
 		renderer.layout();
 		renderer.createPDF(output);
+	}
+	
+	@WebResult(name = "pdf")
+	public InputStream merge(@WebParam(name = "documents") List<PDFDocument> documents) throws IOException {
+		if (documents != null && !documents.isEmpty()) {
+			PDDocument doc = new PDDocument();
+			for (PDFDocument document : documents) {
+				if ("application/pdf".equalsIgnoreCase(document.getContentType())) {
+					PDDocument expected = PDDocument.load(document.getContent());
+					for (PDPage page : expected.getDocumentCatalog().getPages()) {
+						doc.addPage(page);
+					}
+				}
+				else if (document.getContentType().matches("image/.*")) {
+					PDRectangle pageSize = PDRectangle.A4;
+					PDPage page = new PDPage(pageSize);
+					doc.addPage(page);
+					try (PDPageContentStream contents = new PDPageContentStream(doc, page)) {
+						byte[] bytes = IOUtils.toBytes(IOUtils.wrap(document.getContent()));
+						// the last parameter is the filename, this is mostly useful for error logging
+						PDImageXObject image = PDImageXObject.createFromByteArray(doc, bytes, null);
+						
+						int originalWidth = image.getWidth();
+						int originalHeight = image.getHeight();
+						float pageWidth = pageSize.getWidth();
+						float pageHeight = pageSize.getHeight();
+						float ratio = Math.min(pageWidth / originalWidth, pageHeight / originalHeight);
+						float scaledWidth = originalWidth * ratio;
+						float scaledHeight = originalHeight * ratio;
+						float x = (pageWidth - scaledWidth) / 2;
+						float y = (pageHeight - scaledHeight) / 2;
+						
+						contents.drawImage(image, x, y, scaledWidth, scaledHeight);
+					}
+				}
+			}
+			ByteArrayOutputStream output = new ByteArrayOutputStream();
+			doc.save(output);
+			return new ByteArrayInputStream(output.toByteArray());
+		}
+		return null;
 	}
 }
